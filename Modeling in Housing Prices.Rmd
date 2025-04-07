@@ -1,0 +1,174 @@
+---
+title: "R Coding Sample"
+output: pdf_document
+author: 'Yuqi Shi'
+date: "2024-10-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+```
+
+```{r}
+# Set working directory and libraries
+setwd('C:/Users/shiyq/Downloads/IntercessionR')
+
+library(dplyr) # For any additional data manipulation
+
+# Read the dataset
+real_estate <- read.csv('realestatedata.csv')
+
+# Overview of the dataset
+head(real_estate)
+colnames(real_estate)
+summary(real_estate)
+
+#Choose predictors by plotting the relationship between the categorical variables and 
+#the dependent variable, and the relationship between the numeric variables and the dependent variable
+
+# Correlation matrix
+cor(real_estate[, c(1:6, 10:11,14:19)])[1,]
+# year_built, yr_sold, size_sqf, floor, n_parkinglot_basement, n_facilities_near_by_total 
+#have relatively strong correlation with the dependent variable. 
+#I chose one of the three variables related to facilities (total facilities). 
+
+# Boxplots
+par(mfrow = c(2, 3))
+boxplot(sale_price ~ hallway_type, data = real_estate)
+boxplot(sale_price ~ heating_type, data = real_estate)
+boxplot(sale_price ~ apt_manage_type, data = real_estate)
+boxplot(sale_price ~ time_to_bus_stop, data = real_estate)
+boxplot(sale_price ~ time_to_subway, data = real_estate)
+# apt_manage_type and hallway_type seem to have a strong impact on price. 
+
+# Create dummy variables
+manage_dummies <- model.matrix( ~ ., real_estate['apt_manage_type'])
+real_estate <- cbind(real_estate, manage_dummies[, 2])
+colnames(real_estate)[20] <- "self_management"
+
+hallway_dummies <- model.matrix( ~ ., real_estate['hallway_type'])
+real_estate <- cbind(real_estate, hallway_dummies[, 2:3])
+
+# Fit the model. Chose OLS model because the dependent variable sales_price is a quantitative variable. 
+model1 <- lm(sale_price ~ year_built + yr_sold + size_sqf + floor + n_parkinglot_basement + n_facilities_near_by_total + self_management + hallway_typemixed + hallway_typeterraced, data = real_estate)
+
+summary(model1)
+
+# All the coefficients included in this model are statistically significant predictors of 
+#sales price as their p-values are all less than 0.05. The adjusted R-squared value is 8.271, 
+#showing that the model has a strong predictative ability of sales price. Year sold, 
+#management type and hallway type have the strongest impact on sale price by checking their coefficients. 
+#For example, for one unit increase in year sold, the price will increase by 11660 on average, 
+#indicating the apartment selling price has been increasing over the years. 
+
+# Validate the model using 5-fold cross validation
+
+# Compute RMSE to evaluate the performance of regressions out-of-sample
+rmse <- function(predicted, observed) {
+  return(sqrt(sum((predicted - observed)^2)/length(observed)))
+}
+
+folds <- sample(rep(1:5, length = nrow(real_estate)))  
+
+rep(1:5, length=nrow(real_estate))
+sample(rep(1:5, length=nrow(real_estate)))
+
+table(folds)
+metrics <- c()
+for(i in unique(folds)) {
+  test <- which(folds == i)
+  fit <- model1
+  preds <- predict(fit, newdata = real_estate[test,], type = 'response')
+  err <- rmse(predicted = preds, observed = real_estate$sale_price[test])
+  metrics <- c(metrics, err)
+}
+
+mean(metrics)
+# The RMSE for this model is 44188.59. This is relatively large given the price range 
+#of around 30000 ~ 140000. This means that the model has a relaively large predicative uncertainty. 
+   
+# Set up the data as a model.matrix 
+#and run a lasso regression with 5-fold cross-
+#    validation on the model. Then we report the accompanying metric
+#    that used to determine model performance, based on the `lamdba.min`
+#    value.
+
+# Set up data as a model.matrix
+?everything()
+real_estate_alt <- dplyr::select(real_estate, sale_price, everything())
+real_estate_alt$real_estate <- NULL
+head(real_estate_alt)
+
+predictors <- model.matrix(sale_price ~ . -1, data = real_estate_alt)
+head(predictors)
+head(real_estate_alt[-1])
+
+library(glmnet)
+
+y <- real_estate_alt$sale_price
+lasso <- glmnet(predictors, y, alpha = 1) 
+
+par(mfrow = c(1, 1))
+plot(lasso, xvar='lambda', label = T)  
+
+# Validate the model's performance with cross-validation and pick an optimal lambda
+cv_lasso <- cv.glmnet(predictors, y, alpha = 1, nfolds = 5)
+plot(cv_lasso)
+
+# Get optimal parameters
+cv_lasso
+
+# Both min/1se RMSE are smaller comparing to the OLS model. 
+#The sparser model does improve the predictive performance.
+sqrt(cv_lasso$cvm[which(cv_lasso$lambda %in% cv_lasso$lambda.min)])
+sqrt(cv_lasso$cvm[which(cv_lasso$lambda %in% cv_lasso$lambda.1se)])
+
+# Given the coefficient, the size_sqf is most associated with the value of lambda.min.
+#A couple of variables should be dropped. 
+coef(cv_lasso, s = cv_lasso$lambda.min)
+
+library(boot)
+full_fit <- glm(sale_price ~ ., data = real_estate_alt)
+k_fold_mse <- cv.glm(real_estate_alt, full_fit, K = 5)$delta[1]
+sqrt(k_fold_mse)
+# Looking at the performance of the full model, it looks like regularization 
+#is helping us in reducing the predicative uncertainty with a smaller MSE. 
+
+
+library(randomForest)
+set.seed(101)
+dim(real_estate)
+
+train <- sample(nrow(real_estate), 300)
+
+rf_model <- randomForest(sale_price ~ ., data = real_estate, subset = train)
+rf_model
+
+# Vary our forest across the `mtry` parameter
+metrics <- numeric(length=12L)
+for (mtry in seq_along(metrics)) {
+  message(glue::glue('Fitting randomForest models with {mtry} variable(s) per split'))
+  fit <- randomForest(
+    sale_price ~ .,
+    data = real_estate,
+    subset = train,
+    mtry = mtry,
+    ntree = 400
+  )
+  pred <- predict(fit, real_estate[-train, ])
+  metrics[mtry] <- rmse(predicted = pred, observed = real_estate$sale_price[-train])
+}
+
+plot(metrics)
+min(metrics)
+
+# Compare against a linear model
+real_estate_lm <- glm(sale_price ~ ., data = real_estate, subset = train)
+preds <- predict(real_estate_lm, newdata = real_estate[-train,])
+rmse(preds, real_estate$sale_price[-train]) 
+# The random Forest model is doing a better job than the general linear model
+
+
+```
+
+
