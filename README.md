@@ -11,9 +11,9 @@ This project analyzes the determinants of housing prices using real estate data.
 
 ## 📁 Files
 
-- `Modeling-in-Housing-Prices.pdf`: Main policy-style write-up with regression + Random Forest analysis  
-- `An_Analysis_for_Modeling_in_Housing_Prices.pdf`: Automatically generated full knit PDF output from RMarkdown  
+- `Modeling-in-Housing-Prices.pdf`: Automatically generated full knit PDF output from RMarkdown  
 - `Modeling in Housing Prices.Rmd`: Source code and full modeling workflow  
+- `An_Analysis_for_Modeling_in_Housing_Prices.pdf`: Main policy-style write-up with regression + Random Forest analysis
 - `model_script.R`: Extracted sample R script to assist GitHub language detection  
 - `README.md`: General Guide
 
