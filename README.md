@@ -6,18 +6,16 @@ The project is implemented using R Markdown to ensure full reproducibility.
 ## 🏠 Topics Covered
 
 - Exploratory data analysis and visualization
-- Linear regression and feature selection
+- Linear regression, feature selection and Random Forest Model
 - Residual diagnostics
 - Model interpretation
 
 ## 📊 Tools
 
-- R, RMarkdown
+- R: Markdown
 - ggplot2, dplyr, tidyr
 - broom, MASS, caret
 
 ## ✍️ Author
 
 Yuqi Shi  
-M.A. in International Economics and Finance  
-Johns Hopkins University  
