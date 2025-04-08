@@ -16,6 +16,10 @@ The project is implemented using R Markdown to ensure full reproducibility.
 - ggplot2, dplyr, tidyr
 - broom, MASS, caret
 
-## ✍️ Author
+##  Contact
 
-Yuqi Shi  
+- Yuqi Shi ([yshi103@alumni.jh.edu](mailto\:yshi103@alumni.jh.edu))
+- [LinkedIn](https://www.linkedin.com/in/yuqi-shi-3728a5200/)
+
+---
+
